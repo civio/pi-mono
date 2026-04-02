@@ -96,7 +96,7 @@ Options:
 | `MOM_SLACK_APP_TOKEN` | Slack app-level token (xapp-...) |
 | `MOM_SLACK_BOT_TOKEN` | Slack bot token (xoxb-...) |
 | `ANTHROPIC_API_KEY` | (Optional) Anthropic API key |
-| `MOM_MODEL` | (Optional) Model to use, as `provider/model-id` (e.g. `ollama/qwen3.5:latest`) |
+| `MOM_MODEL` | (Optional) Model to use, as `provider/model-id` (e.g. `ollama/gemma4:latest`) |
 
 ## Authentication
 
@@ -129,7 +129,7 @@ ollama serve
 
 2. Pull a model:
 ```bash
-ollama pull qwen3.5:latest
+ollama pull gemma4:latest
 ```
 
 3. Create `~/.pi/mom/models.json` to register the Ollama provider:
@@ -141,7 +141,7 @@ ollama pull qwen3.5:latest
       "api": "openai-completions",
       "apiKey": "ollama",
       "models": [
-        { "id": "qwen3.5:latest" }
+        { "id": "gemma4:latest" }
       ]
     }
   }
@@ -152,7 +152,7 @@ The `apiKey` is a dummy value (Ollama ignores it, but the framework requires a n
 
 4. Run mom with `MOM_MODEL`:
 ```bash
-MOM_MODEL=ollama/qwen3.5:latest mom --sandbox=docker:mom-sandbox ./data
+MOM_MODEL=ollama/gemma4:latest mom --sandbox=docker:mom-sandbox ./data
 ```
 
 If `MOM_MODEL` is not set, mom falls back to the default Anthropic model (`claude-sonnet-4-5`).
@@ -161,8 +161,8 @@ If `MOM_MODEL` is not set, mom falls back to the default Anthropic model (`claud
 
 Not all local models work equally well with mom. Key considerations:
 
-- **Tool use support is critical.** Mom relies heavily on tool calling (bash, read, write, edit, attach). Models with poor tool-use support will fail to operate correctly. Qwen 3.5 and Llama 3.1+ have good tool-use support.
-- **Reasoning/thinking models need extra configuration.** Models like Gemma 4 that default to a thinking mode may put all output in a `reasoning` field and return empty `content`, resulting in blank responses. Set `"reasoning": true` in the model definition if needed.
+- **Tool use support is critical.** Mom relies heavily on tool calling (bash, read, write, edit, attach). Models with poor tool-use support will fail to operate correctly. Gemma 4, Qwen 3.5 and Llama 3.1+ have good tool-use support.
+- **Reasoning/thinking models need extra configuration.** Some models default to a thinking mode that may put all output in a `reasoning` field and return empty `content`, resulting in blank responses. Set `"reasoning": true` in the model definition if needed.
 - **Context window matters.** Mom's system prompt plus conversation history can be large. Models with small context windows will hit limits quickly. The default `contextWindow` in models.json is 128k tokens.
 - **Cost defaults to 0** for local models, so usage tracking will show $0.00.
 
