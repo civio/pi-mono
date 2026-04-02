@@ -96,6 +96,7 @@ Options:
 | `MOM_SLACK_APP_TOKEN` | Slack app-level token (xapp-...) |
 | `MOM_SLACK_BOT_TOKEN` | Slack bot token (xoxb-...) |
 | `ANTHROPIC_API_KEY` | (Optional) Anthropic API key |
+| `MOM_MODEL` | (Optional) Model to use, as `provider/model-id` (e.g. `ollama/qwen3.5:latest`) |
 
 ## Authentication
 
@@ -113,6 +114,72 @@ export ANTHROPIC_API_KEY=sk-ant-...
   - choose "Anthropic" provider
   - follow instructions in the browser
 - link `auth.json` to mom: `ln -s ~/.pi/agent/auth.json ~/.pi/mom/auth.json`
+
+## Using Local Models (Ollama)
+
+Mom can use local models via [Ollama](https://ollama.com) instead of Anthropic's API. The underlying `pi-ai` module supports any OpenAI-compatible endpoint through its `openai-completions` provider.
+
+### Setup
+
+1. Install and start Ollama:
+```bash
+brew install ollama
+ollama serve
+```
+
+2. Pull a model:
+```bash
+ollama pull qwen3.5:latest
+```
+
+3. Create `~/.pi/mom/models.json` to register the Ollama provider:
+```json
+{
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "api": "openai-completions",
+      "apiKey": "ollama",
+      "models": [
+        { "id": "qwen3.5:latest" }
+      ]
+    }
+  }
+}
+```
+
+The `apiKey` is a dummy value (Ollama ignores it, but the framework requires a non-empty string). Add more models to the `models` array as needed.
+
+4. Run mom with `MOM_MODEL`:
+```bash
+MOM_MODEL=ollama/qwen3.5:latest mom --sandbox=docker:mom-sandbox ./data
+```
+
+If `MOM_MODEL` is not set, mom falls back to the default Anthropic model (`claude-sonnet-4-5`).
+
+### Model Selection Notes
+
+Not all local models work equally well with mom. Key considerations:
+
+- **Tool use support is critical.** Mom relies heavily on tool calling (bash, read, write, edit, attach). Models with poor tool-use support will fail to operate correctly. Qwen 3.5 and Llama 3.1+ have good tool-use support.
+- **Reasoning/thinking models need extra configuration.** Models like Gemma 4 that default to a thinking mode may put all output in a `reasoning` field and return empty `content`, resulting in blank responses. Set `"reasoning": true` in the model definition if needed.
+- **Context window matters.** Mom's system prompt plus conversation history can be large. Models with small context windows will hit limits quickly. The default `contextWindow` in models.json is 128k tokens.
+- **Cost defaults to 0** for local models, so usage tracking will show $0.00.
+
+### Adding More Models
+
+Add entries to the `models` array in `~/.pi/mom/models.json`. Each model only requires an `id` field; other fields have sensible defaults. You can override them if needed:
+
+```json
+{
+  "id": "my-model:latest",
+  "contextWindow": 32000,
+  "maxTokens": 8192,
+  "reasoning": true
+}
+```
+
+See `packages/coding-agent/src/core/model-registry.ts` for the full schema.
 
 ## How Mom Works
 

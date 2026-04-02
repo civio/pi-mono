@@ -1,5 +1,5 @@
 import { Agent, type AgentEvent } from "@mariozechner/pi-agent-core";
-import { getModel, type ImageContent } from "@mariozechner/pi-ai";
+import { type Api, getModel, type ImageContent, type Model } from "@mariozechner/pi-ai";
 import {
 	AgentSession,
 	AuthStorage,
@@ -23,8 +23,39 @@ import type { ChannelInfo, SlackContext, UserInfo } from "./slack.js";
 import type { ChannelStore } from "./store.js";
 import { createMomTools, setUploadFunction } from "./tools/index.js";
 
-// Hardcoded model for now - TODO: make configurable (issue #63)
-const model = getModel("anthropic", "claude-sonnet-4-5");
+// Default model, can be overridden via ~/.pi/mom/models.json
+const DEFAULT_MODEL = getModel("anthropic", "claude-sonnet-4-5");
+
+// Auth and model registry shared across all channels
+const momConfigDir = join(homedir(), ".pi", "mom");
+const authStorage = AuthStorage.create(join(momConfigDir, "auth.json"));
+const modelRegistry = ModelRegistry.create(authStorage, join(momConfigDir, "models.json"));
+
+/**
+ * Resolve the model to use. If MOM_MODEL is set (as "provider/model-id"),
+ * look it up in the model registry. Otherwise use the default.
+ */
+function resolveModel(): Model<Api> {
+	const envModel = process.env.MOM_MODEL;
+	if (envModel) {
+		const slashIndex = envModel.indexOf("/");
+		if (slashIndex > 0) {
+			const provider = envModel.substring(0, slashIndex);
+			const modelId = envModel.substring(slashIndex + 1);
+			const found = modelRegistry.find(provider, modelId);
+			if (found) {
+				log.logInfo(`Using model from MOM_MODEL: ${provider}/${modelId}`);
+				return found;
+			}
+			log.logWarning(`Model "${envModel}" not found in registry, falling back to default`);
+		} else {
+			log.logWarning(`MOM_MODEL should be "provider/model-id", got "${envModel}", falling back to default`);
+		}
+	}
+	return DEFAULT_MODEL;
+}
+
+const model = resolveModel();
 
 export interface PendingMessage {
 	userName: string;
@@ -42,16 +73,13 @@ export interface AgentRunner {
 	abort(): void;
 }
 
-async function getAnthropicApiKey(authStorage: AuthStorage): Promise<string> {
-	const key = await authStorage.getApiKey("anthropic");
-	if (!key) {
-		throw new Error(
-			"No API key found for anthropic.\n\n" +
-				"Set an API key environment variable, or use /login with Anthropic and link to auth.json from " +
-				join(homedir(), ".pi", "mom", "auth.json"),
-		);
+async function getApiKeyForModel(_provider: string): Promise<string | undefined> {
+	const result = await modelRegistry.getApiKeyAndHeaders(model);
+	if (result.ok) {
+		return result.apiKey;
 	}
-	return key;
+	// For providers that don't require auth (e.g., local Ollama), return undefined
+	return undefined;
 }
 
 const IMAGE_MIME_TYPES: Record<string, string> = {
@@ -426,11 +454,6 @@ function createRunner(sandboxConfig: SandboxConfig, channelId: string, channelDi
 	const sessionManager = SessionManager.open(contextFile, channelDir);
 	const settingsManager = createMomSettingsManager(join(channelDir, ".."));
 
-	// Create AuthStorage and ModelRegistry
-	// Auth stored outside workspace so agent can't access it
-	const authStorage = AuthStorage.create(join(homedir(), ".pi", "mom", "auth.json"));
-	const modelRegistry = ModelRegistry.create(authStorage);
-
 	// Create agent
 	const agent = new Agent({
 		initialState: {
@@ -440,7 +463,7 @@ function createRunner(sandboxConfig: SandboxConfig, channelId: string, channelDi
 			tools,
 		},
 		convertToLlm,
-		getApiKey: async () => getAnthropicApiKey(authStorage),
+		getApiKey: getApiKeyForModel,
 	});
 
 	// Load existing messages
