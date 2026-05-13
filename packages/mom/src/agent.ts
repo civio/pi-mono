@@ -710,6 +710,11 @@ function createRunner(sandboxConfig: SandboxConfig, channelId: string, channelDi
 				userName: ctx.message.userName,
 				channelName: ctx.channelName,
 			};
+
+			// Expose channel context to child processes (skills can check these)
+			process.env.MOM_CHANNEL_ID = ctx.message.channel;
+			process.env.MOM_CHANNEL_NAME = ctx.channelName || "";
+
 			runState.pendingTools.clear();
 			runState.totalUsage = {
 				input: 0,
