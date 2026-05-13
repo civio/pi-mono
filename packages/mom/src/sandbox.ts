@@ -180,8 +180,13 @@ class DockerExecutor implements Executor {
 	constructor(private container: string) {}
 
 	async exec(command: string, options?: ExecOptions): Promise<ExecResult> {
-		// Wrap command for docker exec
-		const dockerCmd = `docker exec ${this.container} sh -c ${shellEscape(command)}`;
+		// Wrap command for docker exec, passing channel context into the container
+		const passthrough = ["MOM_CHANNEL_ID", "MOM_CHANNEL_NAME"];
+		const envFlags = passthrough
+			.filter((k) => process.env[k] != null)
+			.map((k) => `-e ${k}=${shellEscape(process.env[k]!)}`)
+			.join(" ");
+		const dockerCmd = `docker exec ${envFlags} ${this.container} sh -c ${shellEscape(command)}`;
 		const hostExecutor = new HostExecutor();
 		return hostExecutor.exec(dockerCmd, options);
 	}
