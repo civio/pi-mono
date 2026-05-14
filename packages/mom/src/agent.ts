@@ -679,8 +679,17 @@ function createRunner(sandboxConfig: SandboxConfig, channelId: string, channelDi
 			// This picks up any messages synced above
 			const reloadedSession = sessionManager.buildSessionContext();
 			if (reloadedSession.messages.length > 0) {
-				agent.state.messages = reloadedSession.messages;
-				log.logInfo(`[${channelId}] Reloaded ${reloadedSession.messages.length} messages from context`);
+				// Apply 30-minute sliding window to keep context small
+				const CONTEXT_WINDOW_MS = 30 * 60 * 1000;
+				const cutoff = Date.now() - CONTEXT_WINDOW_MS;
+				agent.state.messages = reloadedSession.messages.filter((msg) => {
+					if (msg.role === "compactionSummary" || msg.role === "branchSummary") return true;
+					if ("timestamp" in msg && msg.timestamp && msg.timestamp < cutoff) return false;
+					return true;
+				});
+				log.logInfo(
+					`[${channelId}] Reloaded ${agent.state.messages.length} messages from context (${reloadedSession.messages.length} total, filtered to 30min window)`,
+				);
 			}
 
 			// Update system prompt with fresh memory, channel/user info, and skills

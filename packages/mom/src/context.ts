@@ -116,6 +116,11 @@ export function syncLogToSessionManager(
 			if (existingMessages.has(messageText)) continue;
 
 			const msgTime = new Date(date).getTime() || Date.now();
+
+			// Skip messages older than 30 minutes
+			const CONTEXT_WINDOW_MS = 30 * 60 * 1000;
+			if (msgTime < Date.now() - CONTEXT_WINDOW_MS) continue;
+
 			const userMessage: UserMessage = {
 				role: "user",
 				content: [{ type: "text", text: messageText }],
