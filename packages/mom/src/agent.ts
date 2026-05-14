@@ -171,20 +171,12 @@ function buildSystemPrompt(
 	channelId: string,
 	memory: string,
 	sandboxConfig: SandboxConfig,
-	channels: ChannelInfo[],
-	users: UserInfo[],
+	_channels: ChannelInfo[],
+	_users: UserInfo[],
 	skills: Skill[],
 ): string {
 	const channelPath = `${workspacePath}/${channelId}`;
 	const isDocker = sandboxConfig.type === "docker";
-
-	// Format channel mappings
-	const channelMappings =
-		channels.length > 0 ? channels.map((c) => `${c.id}\t#${c.name}`).join("\n") : "(no channels loaded)";
-
-	// Format user mappings
-	const userMappings =
-		users.length > 0 ? users.map((u) => `${u.id}\t@${u.userName}\t${u.displayName}`).join("\n") : "(no users loaded)";
 
 	const envDescription = isDocker
 		? `You are running inside a Docker container (Alpine Linux).
@@ -205,11 +197,6 @@ function buildSystemPrompt(
 ## Slack Formatting (mrkdwn, NOT Markdown)
 Bold: *text*, Italic: _text_, Code: \`code\`, Block: \`\`\`code\`\`\`, Links: <url|text>
 Do NOT use **double asterisks** or [markdown](links).
-
-## Slack IDs
-Channels: ${channelMappings}
-
-Users: ${userMappings}
 
 When mentioning users, use <@username> format (e.g., <@mario>).
 
