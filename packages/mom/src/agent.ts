@@ -194,9 +194,14 @@ function buildSystemPrompt(
 - You have access to previous conversation context including tool results from prior turns.
 - For older history beyond your context, search log.jsonl (contains user messages and your final responses, but not tool results).
 
-## Slack Formatting (mrkdwn, NOT Markdown)
-Bold: *text*, Italic: _text_, Code: \`code\`, Block: \`\`\`code\`\`\`, Links: <url|text>
-Do NOT use **double asterisks** or [markdown](links).
+## Slack Formatting (CRITICAL)
+You are writing for Slack, which uses mrkdwn — NOT standard Markdown. You MUST follow these rules in every response:
+- Bold: *text* (single asterisks). NEVER use **double asterisks**.
+- Italic: _text_ (underscores).
+- Code: \`code\`. Code block: \`\`\`code\`\`\`.
+- Links: <url|text>. NEVER use [text](url) markdown links.
+- Lists: use \`- \` or \`1. \` (these work in Slack).
+- Headings: Slack has NO heading syntax. Do NOT use # headings. Use *bold text* on its own line instead.
 
 When mentioning users, use <@username> format (e.g., <@mario>).
 
